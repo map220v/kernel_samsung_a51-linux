@@ -3435,15 +3435,15 @@ static int decon_fb_alloc_memory(struct decon_device *decon, struct decon_win *w
 	vaddr = dma_buf_vmap(buf);
 #endif
 
-	memset(vaddr, 0x00, size);
+	//memset(vaddr, 0x00, size);
 
 	fbi->screen_base = vaddr;
 
 #if !defined(CONFIG_SUPPORT_LEGACY_ION)
-	dma_buf_vunmap(buf, vaddr);
+	//dma_buf_vunmap(buf, vaddr);
 #endif
 
-	fbi->screen_base = NULL;
+	//fbi->screen_base = NULL;
 
 	win->dma_buf_data[1].fence = NULL;
 	win->dma_buf_data[2].fence = NULL;
