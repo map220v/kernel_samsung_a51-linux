@@ -3129,7 +3129,7 @@ static int decon_ioctl(struct fb_info *info, unsigned int cmd,
 	return ret;
 }
 
-static ssize_t decon_fb_read(struct fb_info *info, char __user *buf,
+/*static ssize_t decon_fb_read(struct fb_info *info, char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	return 0;
@@ -3139,7 +3139,7 @@ static ssize_t decon_fb_write(struct fb_info *info, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
 	return 0;
-}
+}*/
 
 int decon_release(struct fb_info *info, int user)
 {
@@ -3147,6 +3147,7 @@ int decon_release(struct fb_info *info, int user)
 	struct decon_device *decon = win->decon;
 	int fb_count = atomic_read(&info->count);
 
+      return 0;
 	decon_info("%s + : %d\n", __func__, decon->id);
 
 	if (decon->id && decon->dt.out_type == DECON_OUT_DSI) {
@@ -3199,12 +3200,14 @@ static struct fb_ops decon_fb_ops = {
 	.fb_blank	= decon_blank,
 	.fb_setcolreg	= decon_setcolreg,
 	.fb_fillrect    = cfb_fillrect,
+	.fb_copyarea    = cfb_copyarea,
+	.fb_imageblit   = cfb_imageblit,
 #ifdef CONFIG_COMPAT
 	.fb_compat_ioctl = decon_compat_ioctl,
 #endif
 	.fb_ioctl	= decon_ioctl,
-	.fb_read	= decon_fb_read,
-	.fb_write	= decon_fb_write,
+//	.fb_read	= decon_fb_read,
+//	.fb_write	= decon_fb_write,
 	.fb_pan_display	= decon_pan_display,
 	.fb_mmap	= decon_mmap,
 	.fb_release	= decon_release,
@@ -4016,6 +4019,12 @@ decon_init_done:
 
 	decon->state = DECON_STATE_INIT;
 
+    // Try to unblank decon0
+    if(decon->id == 0)
+    {
+        decon_blank(FB_BLANK_UNBLANK, fbinfo);
+    }
+    
 	return 0;
 }
 

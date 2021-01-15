@@ -842,8 +842,8 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	if ((!IS_DECON_HIBER_STATE(decon) && IS_DECON_OFF_STATE(decon)) ||
 			decon->state == DECON_STATE_INIT) {
-		decon_warn("%s: decon%d state(%d), UNBLANK missed\n",
-				__func__, decon->id, decon->state);
+		//decon_warn("%s: decon%d state(%d), UNBLANK missed\n",
+		//		__func__, decon->id, decon->state);
 		return 0;
 	}
 
@@ -859,7 +859,7 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		break;
 	case 24:
 	case 32:
-		config.format = DECON_PIXEL_FORMAT_ABGR_8888; /* DECON_PIXEL_FORMAT_BGRA_8888; */
+		config.format = DECON_PIXEL_FORMAT_ARGB_8888; /* DECON_PIXEL_FORMAT_BGRA_8888; */
 		break;
 	default:
 		decon_err("%s: Not supported bpp %d\n", __func__,
