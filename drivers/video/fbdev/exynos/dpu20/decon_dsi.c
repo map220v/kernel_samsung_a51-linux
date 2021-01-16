@@ -318,6 +318,8 @@ static ssize_t decon_show_vsync(struct device *dev,
 }
 static DEVICE_ATTR(vsync, S_IRUGO, decon_show_vsync, NULL);
 
+int needs_pan = false;
+
 static int decon_vsync_thread(void *data)
 {
 	struct decon_device *decon = data;
@@ -332,6 +334,18 @@ static int decon_vsync_thread(void *data)
 		int ret = wait_event_interruptible(decon->vsync.wait,
 			(timestamp != decon->vsync.timestamp) &&
 			decon->vsync.active);
+			
+		struct decon_mode_info psr;		
+		if (needs_pan) {
+			//Verrrry hacky and bad... plox gib better solution
+			struct fb_info *fb_info = decon->win[decon->dt.dft_win]->fbinfo;
+			struct fb_var_screeninfo *var = &fb_info->var;
+			usleep_range(200000, 201000);
+			decon_pan_display(var, fb_info);
+			needs_pan = false;
+		}
+		decon_to_psr_info(decon, &psr);
+		decon_reg_start(decon->id, &psr);
 #endif
 		if (!ret)
 			sysfs_notify(&decon->dev->kobj, NULL, "vsync");

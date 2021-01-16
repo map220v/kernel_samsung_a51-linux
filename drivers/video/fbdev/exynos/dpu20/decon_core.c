@@ -47,6 +47,9 @@
 #if defined(CONFIG_SOC_EXYNOS9610)
 #include <dt-bindings/clock/exynos9610.h>
 #endif
+#ifdef CONFIG_STATE_NOTIFIER
+#include <linux/state_notifier.h>
+#endif
 
 #include "decon.h"
 #include "dsim.h"
@@ -58,13 +61,13 @@
 #include "displayport.h"
 #endif
 
-int decon_log_level = 6;
+int decon_log_level = 0;
 module_param(decon_log_level, int, 0644);
-int dpu_bts_log_level = 6;
+int dpu_bts_log_level = 0;
 module_param(dpu_bts_log_level, int, 0644);
-int win_update_log_level = 6;
+int win_update_log_level = 0;
 module_param(win_update_log_level, int, 0644);
-int dpu_mres_log_level = 6;
+int dpu_mres_log_level = 0;
 module_param(dpu_mres_log_level, int, 0644);
 int decon_systrace_enable;
 void decon_wait_for_vstatus(struct decon_device *decon, u32 timeout);
@@ -1004,11 +1007,15 @@ err:
 	return ret;
 }
 
+int decon_set_vsync_int(struct fb_info *info, bool active);
+extern int needs_pan;
+
 static int decon_blank(int blank_mode, struct fb_info *info)
 {
 	struct decon_win *win = info->par;
 	struct decon_device *decon = win->decon;
 	int ret = 0;
+	struct fb_info *fb_info;
 
 	decon_info("%s + blank_mode: %d, decon-%d %s mode: %d type (0: DSI, 1: eDP, 2:DP, 3: WB)\n",
 			__func__, blank_mode, decon->id,
@@ -1034,6 +1041,9 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			goto blank_exit;
 		}
 		atomic_set(&decon->ffu_flag, 2);
+		#ifdef CONFIG_STATE_NOTIFIER
+			state_suspend();
+		#endif
 		break;
 	case FB_BLANK_UNBLANK:
 		DPU_EVENT_LOG(DPU_EVT_UNBLANK, &decon->sd, ktime_set(0, 0));
@@ -1043,10 +1053,16 @@ static int decon_blank(int blank_mode, struct fb_info *info)
 			goto blank_exit;
 		}
 		atomic_set(&decon->ffu_flag, 2);
+		#ifdef CONFIG_STATE_NOTIFIER
+			state_suspend();
+		#endif
 #if defined(CONFIG_EXYNOS_READ_ESD_SOLUTION)
 		if (decon->esd.thread)
 			wake_up_process(decon->esd.thread);
 #endif
+		needs_pan = true;
+		fb_info = decon->win[decon->dt.dft_win]->fbinfo;
+		decon_set_vsync_int(fb_info, true);
 		break;
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
@@ -3619,6 +3635,7 @@ static int decon_acquire_window(struct decon_device *decon, int idx)
 	}
 
 	fbinfo->fix.type	= FB_TYPE_PACKED_PIXELS;
+	fbinfo->fix.visual	= FB_VISUAL_TRUECOLOR,
 	fbinfo->fix.accel	= FB_ACCEL_NONE;
 	fbinfo->var.activate	= FB_ACTIVATE_NOW;
 	fbinfo->var.vmode	= FB_VMODE_NONINTERLACED;
@@ -3945,8 +3962,8 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	}
 
 	decon_to_init_param(decon, &p);
-	if (decon_reg_init(decon->id, decon->dt.out_idx[0], &p) < 0)
-		goto decon_init_done;
+	//if (decon_reg_init(decon->id, decon->dt.out_idx[0], &p) < 0)
+	//	goto decon_init_done;
 
 	memset(&win_regs, 0, sizeof(struct decon_window_regs));
 	win_regs.wincon = wincon(0x8, 0xFF, 0xFF, 0xFF, DECON_BLENDING_NONE,
@@ -3972,7 +3989,7 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	set_bit(dpp_id, &decon->prev_used_dpp);
 	memset(&config, 0, sizeof(struct decon_win_config));
 	config.dpp_parm.addr[0] = fbinfo->fix.smem_start;
-	config.format = DECON_PIXEL_FORMAT_BGRA_8888;
+	config.format = DECON_PIXEL_FORMAT_ARGB_8888;
 	config.src.w = fbinfo->var.xres;
 	config.src.h = fbinfo->var.yres;
 	config.src.f_w = fbinfo->var.xres;
@@ -4011,11 +4028,12 @@ static int decon_initial_display(struct decon_device *decon, bool is_colormap)
 	decon_reg_set_int(decon->id, &psr, 1);
 	call_panel_ops(dsim, displayon, dsim);
 	decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
+	decon_set_vsync_int(fbinfo, true);
 	if (decon_reg_wait_update_done_and_mask(decon->id, &psr,
 				SHADOW_UPDATE_TIMEOUT) < 0)
 		decon_err("%s: wait_for_update_timeout\n", __func__);
 
-decon_init_done:
+//decon_init_done:
 
 	decon->state = DECON_STATE_INIT;
 
