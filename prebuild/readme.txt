@@ -2,3 +2,4 @@ Linux11.img mounts file systems and starts /sbin/init from sda33(Partition creat
 /vendor folder with contents from vendor partition is recommended(to start wifi)
 
 After xorg start might be necessary to use "echo 0 > /sys/class/graphics/fb0/rotate" to start display update
+Knox might cause khungtaskd to reboot phone to fix it execute "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" after boot
