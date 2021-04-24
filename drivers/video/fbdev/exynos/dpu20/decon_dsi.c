@@ -849,87 +849,61 @@ int decon_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct v4l2_subdev *sd = NULL;
 	struct decon_win_config config;
 	int ret = 0;
+	int shift = 0;
 	struct decon_mode_info psr;
-	int dpp_id = DPU_DMA2CH(decon->dt.dft_idma);
 
-	if (decon->dt.out_type != DECON_OUT_DSI) {
-		decon_warn("%s: decon%d unspported on out_type(%d)\n",
-				__func__, decon->id, decon->dt.out_type);
+	if ((decon->dt.out_type == DECON_OUT_DSI &&
+			decon->state == DECON_STATE_INIT) ||
+			decon->state == DECON_STATE_OFF) {
+		decon_warn("%s: decon%d state(%d), UNBLANK missed\n",
+				__func__, decon->id, decon->state);
 		return 0;
 	}
 
-	if ((!IS_DECON_HIBER_STATE(decon) && IS_DECON_OFF_STATE(decon)) ||
-			decon->state == DECON_STATE_INIT) {
-		//decon_warn("%s: decon%d state(%d), UNBLANK missed\n",
-		//		__func__, decon->id, decon->state);
-		return 0;
-	}
+	decon_set_par(info);
 
-	decon_info("%s: [%d %d %d %d %d %d]\n", __func__,
-			var->xoffset, var->yoffset,
-			var->xres, var->yres,
-			var->xres_virtual, var->yres_virtual);
+	decon_hiber_block_exit(decon);
 
+	set_bit(decon->dt.dft_idma, &decon->cur_using_dpp);
+	set_bit(decon->dt.dft_idma, &decon->prev_used_dpp);
 	memset(&config, 0, sizeof(struct decon_win_config));
 	switch (var->bits_per_pixel) {
 	case 16:
 		config.format = DECON_PIXEL_FORMAT_RGB_565;
+		shift = 2;
 		break;
 	case 24:
 	case 32:
-		config.format = DECON_PIXEL_FORMAT_ARGB_8888; /* DECON_PIXEL_FORMAT_BGRA_8888; */
+		config.format = DECON_PIXEL_FORMAT_ARGB_8888;
+		shift = 4;
 		break;
 	default:
-		decon_err("%s: Not supported bpp %d\n", __func__,
-				var->bits_per_pixel);
-		return -EINVAL;
+		decon_err("%s: bits_per_pixel %d\n", __func__, var->bits_per_pixel);
 	}
 
 	config.dpp_parm.addr[0] = info->fix.smem_start;
-	config.src.x =  var->xoffset;
+	config.src.x =  var->xoffset >> shift;
 	config.src.y =  var->yoffset;
 	config.src.w = var->xres;
 	config.src.h = var->yres;
-	config.src.f_w = var->xres_virtual;
-	config.src.f_h = var->yres_virtual;
+	config.src.f_w = var->xres;
+	config.src.f_h = var->yres;
 	config.dst.w = config.src.w;
 	config.dst.h = config.src.h;
-	config.dst.f_w = decon->lcd_info->xres;
-	config.dst.f_h = decon->lcd_info->yres;
-	if (decon_check_limitation(decon, decon->dt.dft_win, &config) < 0)
-		return -EINVAL;
+	config.dst.f_w = config.src.f_w;
+	config.dst.f_h = config.src.f_h;
+	sd = decon->dpp_sd[decon->dt.dft_idma];
 
-	decon_hiber_block_exit(decon);
-
-	decon_to_psr_info(decon, &psr);
-
-	/*
-	 * info->var is old parameters and var is new requested parameters.
-	 * var must be copied to info->var before decon_set_par function
-	 * is called.
-	 *
-	 * If not, old parameters are set to window configuration
-	 * and new parameters are set to DMA and DPP configuration.
-	 */
-	memcpy(&info->var, var, sizeof(struct fb_var_screeninfo));
-
-	set_bit(dpp_id, &decon->cur_using_dpp);
-	set_bit(dpp_id, &decon->prev_used_dpp);
-	sd = decon->dpp_sd[dpp_id];
 	if (v4l2_subdev_call(sd, core, ioctl, DPP_WIN_CONFIG, &config)) {
 		decon_err("%s: Failed to config DPP-%d\n", __func__, win->dpp_id);
-		decon_reg_win_enable_and_update(decon->id, decon->dt.dft_win, false);
-		clear_bit(dpp_id, &decon->cur_using_dpp);
-		set_bit(dpp_id, &decon->dpp_err_stat);
-		goto err;
+		clear_bit(win->dpp_id, &decon->cur_using_dpp);
+		set_bit(win->dpp_id, &decon->dpp_err_stat);
 	}
 
 	decon_reg_update_req_window(decon->id, win->idx);
-#if 0
-	decon_set_par(info);
-#endif
+
+	decon_to_psr_info(decon, &psr);
 	decon_reg_start(decon->id, &psr);
-err:
 	decon_wait_for_vsync(decon, VSYNC_TIMEOUT_MSEC);
 
 	if (decon_reg_wait_update_done_and_mask(decon->id, &psr, SHADOW_UPDATE_TIMEOUT)
@@ -937,6 +911,7 @@ err:
 		decon_err("%s: wait_for_update_timeout\n", __func__);
 
 	decon_hiber_unblock(decon);
+
 	return ret;
 }
 EXPORT_SYMBOL(decon_pan_display);
