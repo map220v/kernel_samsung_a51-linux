@@ -20,7 +20,7 @@ o Add more Screen Resolutions
 
 ### Patches
 Framebuffer fix can be found in this commits:
-https://github.com/map220v/a51nsxx_linux/commit/8f88827bf29b4508ed2ea67110de93776a044e74 - fix fb refreshing
-https://github.com/map220v/a51nsxx_linux/commit/83656dabd2b5db98c04c5b02a2eca7b78152bc18 - fix fb colors
-https://github.com/map220v/a51nsxx_linux/commit/974f3e70d07021a9d7b42f08720b0b425003745f - disable framebuffer unmapping (ignore memset comment)
-https://github.com/map220v/a51nsxx_linux/commit/ebfe69da8c0e0c4fcf8fc22970f9e38280d5224f - fix fbpan not refreshing screen (decon_dsi.c file) (fbpan refresh only used to unblank screen when turning it on)
+- https://github.com/map220v/a51nsxx_linux/commit/8f88827bf29b4508ed2ea67110de93776a044e74 - fix fb refreshing
+- https://github.com/map220v/a51nsxx_linux/commit/83656dabd2b5db98c04c5b02a2eca7b78152bc18 - fix fb colors
+- https://github.com/map220v/a51nsxx_linux/commit/974f3e70d07021a9d7b42f08720b0b425003745f - disable framebuffer unmapping (ignore memset comment)
+- https://github.com/map220v/a51nsxx_linux/commit/ebfe69da8c0e0c4fcf8fc22970f9e38280d5224f - fix fbpan not refreshing screen (decon_dsi.c file) (fbpan refresh only used to unblank screen when turning it on)
